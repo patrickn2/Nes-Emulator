@@ -12,15 +12,15 @@ var YRegister byte = 0x00        // Y Register
 var StackPointer byte = 0x00     // Stack Pointer
 var ProgramCounter uint16 = 0x00 // Program Counter
 
-var instruction = struct {
+type instruction struct {
 	name     string
 	operate  func() bool
 	addrMode func() bool
 	cycles   byte
-}{}
+}
 
 var lookup = [256]instruction{
-	{"BRK", brk, imp, 7}, {"ORA", ora, izx, 6}, {"KIL", KIL, IMP, 2}, {"SLO", SLO, IZX, 8}, {"NOP", NOP, ZP0, 3}, {"ORA", ORA, ZP0, 3}, {"ASL", ASL, ZP0, 5}, {"SLO", SLO, ZP0, 5}, {"PHP", PHP, IMP, 3}, {"ORA", ORA, IMM, 2}, {"ASL", ASL, IMP, 2}, {"ANC", ANC, IMM, 2}, {"NOP", NOP, ABS, 4}, {"ORA", ORA, ABS, 4}, {"ASL", ASL, abs, 6}, {"SLO", SLO, ABS, 6},
+	{"BRK", brk, imp, 7}, {"BRK", brk, imp, 7}, {"BRK", brk, imp, 7}, {"BRK", brk, imp, 7},
 }
 
 // Private variables
@@ -56,7 +56,9 @@ func Clock() {
 		opcode = read(ProgramCounter)
 		ProgramCounter++
 		cycles = lookup[opcode].cycles
-		if lookup[opcode].addrMode() && lookup[opcode].operate() {
+		addrMode := lookup[opcode].addrMode()
+		operate := lookup[opcode].operate()
+		if addrMode && operate {
 			cycles++
 		}
 	}
