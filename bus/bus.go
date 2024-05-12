@@ -1,5 +1,8 @@
 package bus
 
+// This is the Nes Emulator BUS
+// This bus have 64KB of addressable space
+
 var ram [64 * 1024]byte
 
 func Write(addr uint16, data byte) {
