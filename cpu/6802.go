@@ -1,6 +1,8 @@
 package cpu
 
 import (
+	"reflect"
+
 	"github.com/patrickn2/gonesemulator/bus"
 )
 
@@ -18,6 +20,8 @@ type instruction struct {
 	addrMode func() bool
 	cycles   byte
 }
+
+var lookup = [256]instruction{}
 
 // Private variables
 var fetched byte = 0x00
@@ -109,7 +113,7 @@ func abs() bool {
 	ProgramCounter++
 	hi := read(ProgramCounter)
 	ProgramCounter++
-	addrAbs = uint16((hi << 8) | lo)
+	addrAbs = uint16(hi)<<8 | uint16(lo)
 	return false
 }
 
@@ -118,12 +122,9 @@ func abx() bool {
 	ProgramCounter++
 	hi := read(ProgramCounter)
 	ProgramCounter++
-	addrAbs = uint16((hi << 8) | lo)
+	addrAbs = uint16(hi)<<8 | uint16(lo)
 	addrAbs += uint16(XRegister)
-	if (addrAbs & 0xFF00) != uint16(hi<<8) {
-		return true
-	}
-	return false
+	return uint16(addrAbs&0xFF00) != uint16(hi)<<8
 }
 
 func aby() bool {
@@ -131,12 +132,9 @@ func aby() bool {
 	ProgramCounter++
 	hi := read(ProgramCounter)
 	ProgramCounter++
-	addrAbs = uint16((hi << 8) | lo)
+	addrAbs = uint16(hi)<<8 | uint16(lo)
 	addrAbs += uint16(YRegister)
-	if (addrAbs & 0xFF00) != uint16(hi<<8) {
-		return true
-	}
-	return false
+	return uint16(addrAbs&0xFF00) != uint16(hi)<<8
 }
 
 func ind() bool {
@@ -145,7 +143,7 @@ func ind() bool {
 	hi := read(ProgramCounter)
 	ProgramCounter++
 
-	ptr := uint16((hi << 8) | lo)
+	ptr := uint16(hi)<<8 | uint16(lo)
 
 	if lo == 0x00FF {
 		addrAbs = uint16(read(ptr&0xFF00))<<8 | uint16(read(ptr))
@@ -162,7 +160,7 @@ func idx() bool {
 
 	lo := read(uint16(t+XRegister) & 0x00FF)
 	hi := read(uint16(t+XRegister+1) & 0x00FF)
-	addrAbs = uint16((hi << 8) | lo)
+	addrAbs = uint16(hi)<<8 | uint16(lo)
 	return false
 }
 
@@ -172,12 +170,9 @@ func idy() bool {
 
 	lo := read(uint16(t) & 0x00FF)
 	hi := read(uint16(t+1) & 0x00FF)
-	addrAbs = uint16((hi << 8) | lo)
+	addrAbs = uint16(hi)<<8 | uint16(lo)
 	addrAbs += uint16(YRegister)
-	if (addrAbs & 0xFF00) != uint16(hi<<8) {
-		return true
-	}
-	return false
+	return (addrAbs & 0xFF00) != uint16(hi)<<8
 }
 
 func rel() bool {
@@ -192,7 +187,7 @@ func rel() bool {
 // Instructions
 
 func fetch() byte {
-	if lookup[opcode].name == "IMP" {
+	if reflect.ValueOf(lookup[opcode].addrMode).Pointer() == reflect.ValueOf(imp).Pointer() {
 		fetched = read(addrAbs)
 	}
 	return fetched
@@ -202,7 +197,7 @@ func and() bool {
 	fetch()
 	Accumulator = Accumulator & fetched
 	setFlag(FLAGS6502.Z, Accumulator == 0x00)
-	setFlag(FLAGS6502.N, (Accumulator&0x00) != 0)
+	setFlag(FLAGS6502.N, (Accumulator&0x80) != 0)
 	return true
 }
 
@@ -212,7 +207,7 @@ func asl() bool {
 	setFlag(FLAGS6502.C, (uint16(temp)&0xFF00) > 0)
 	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
 	setFlag(FLAGS6502.N, (temp&0x80) != 0)
-	if lookup[opcode].name == "IMP" {
+	if reflect.ValueOf(lookup[opcode].addrMode).Pointer() == reflect.ValueOf(imp).Pointer() {
 		Accumulator = temp & 0x00FF
 	} else {
 		write(addrAbs, temp&0x00FF)
@@ -472,7 +467,7 @@ func lsr() bool {
 	temp := fetched >> 1
 	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
 	setFlag(FLAGS6502.N, (temp&0x80) != 0)
-	if lookup[opcode].name == "IMP" {
+	if reflect.ValueOf(lookup[opcode].addrMode).Pointer() == reflect.ValueOf(imp).Pointer() {
 		Accumulator = temp & 0x00FF
 	} else {
 		write(addrAbs, temp&0x00FF)
@@ -551,7 +546,7 @@ func rol() bool {
 	setFlag(FLAGS6502.C, (uint16(temp)&0xFF00) > 0)
 	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
 	setFlag(FLAGS6502.N, (temp&0x0080) != 0)
-	if lookup[opcode].name == "IMP" {
+	if reflect.ValueOf(lookup[opcode].addrMode).Pointer() == reflect.ValueOf(imp).Pointer() {
 		Accumulator = temp & 0x00FF
 	} else {
 		write(addrAbs, temp&0x00FF)
@@ -565,7 +560,7 @@ func ror() bool {
 	setFlag(FLAGS6502.C, (uint16(temp)&0x01) != 0)
 	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
 	setFlag(FLAGS6502.N, (temp&0x80) != 0)
-	if lookup[opcode].name == "IMP" {
+	if reflect.ValueOf(lookup[opcode].addrMode).Pointer() == reflect.ValueOf(imp).Pointer() {
 		Accumulator = temp & 0x00FF
 	} else {
 		write(addrAbs, temp&0x00FF)
@@ -734,7 +729,7 @@ func brk() bool {
 
 	lo := read(0xFFFE)
 	hi := read(0xFFFF)
-	ProgramCounter = uint16((hi << 8) | lo)
+	ProgramCounter = uint16(hi)<<8 | uint16(lo)
 	return false
 }
 
@@ -752,7 +747,7 @@ func izx() bool {
 	lo := read((t + uint16(XRegister)&0x00FF))
 	hi := read(((t + uint16(XRegister) + 1) & 0x00FF))
 
-	addrAbs = uint16((hi << 8) | lo)
+	addrAbs = uint16(hi)<<8 | uint16(lo)
 	return false
 }
 
@@ -762,31 +757,9 @@ func izy() bool {
 	lo := read(t & 0x00FF)
 	hi := read((t + 1) & 0x00FF)
 
-	addrAbs = uint16((hi << 8) | lo)
+	addrAbs = uint16(hi)<<8 | uint16(lo)
 	addrAbs += uint16(YRegister)
-	if (addrAbs & 0xFF00) != uint16(hi<<8) {
-		return true
-	}
-	return false
-}
-
-var lookup = [256]instruction{
-	{"BRK", brk, imm, 7}, {"ORA", ora, izx, 6}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 3}, {"ORA", ora, zp0, 3}, {"ASL", asl, zp0, 5}, {"???", xxx, imp, 5}, {"PHP", php, imp, 3}, {"ORA", ora, imm, 2}, {"ASL", asl, imp, 2}, {"???", xxx, imp, 2}, {"???", nop, imp, 4}, {"ORA", ora, abs, 4}, {"ASL", asl, abs, 6}, {"???", xxx, imp, 6},
-	{"BPL", bpl, rel, 2}, {"ORA", ora, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 4}, {"ORA", ora, zpx, 4}, {"ASL", asl, zpx, 6}, {"???", xxx, imp, 6}, {"CLC", clc, imp, 2}, {"ORA", ora, aby, 4}, {"???", nop, imp, 2}, {"???", xxx, imp, 7}, {"???", nop, imp, 4}, {"ORA", ora, abx, 4}, {"ASL", asl, abx, 7}, {"???", xxx, imp, 7},
-	{"JSR", jsr, abs, 6}, {"AND", and, izx, 6}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"BIT", bit, zp0, 3}, {"AND", and, zp0, 3}, {"ROL", rol, zp0, 5}, {"???", xxx, imp, 5}, {"PLP", plp, imp, 4}, {"AND", and, imm, 2}, {"ROL", rol, imp, 2}, {"???", xxx, imp, 2}, {"BIT", bit, abs, 4}, {"AND", and, abs, 4}, {"ROL", rol, abs, 6}, {"???", xxx, imp, 6},
-	{"BMI", bmi, rel, 2}, {"AND", and, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 4}, {"AND", and, zpx, 4}, {"ROL", rol, zpx, 6}, {"???", xxx, imp, 6}, {"SEC", sec, imp, 2}, {"AND", and, aby, 4}, {"???", nop, imp, 2}, {"???", xxx, imp, 7}, {"???", nop, imp, 4}, {"AND", and, abx, 4}, {"ROL", rol, abx, 7}, {"???", xxx, imp, 7},
-	{"RTI", rti, imp, 6}, {"EOR", eor, izx, 6}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 3}, {"EOR", eor, zp0, 3}, {"LSR", lsr, zp0, 5}, {"???", xxx, imp, 5}, {"PHA", pha, imp, 3}, {"EOR", eor, imm, 2}, {"LSR", lsr, imp, 2}, {"???", xxx, imp, 2}, {"JMP", jmp, abs, 3}, {"EOR", eor, abs, 4}, {"LSR", lsr, abs, 6}, {"???", xxx, imp, 6},
-	{"BVC", bvc, rel, 2}, {"EOR", eor, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 4}, {"EOR", eor, zpx, 4}, {"LSR", lsr, zpx, 6}, {"???", xxx, imp, 6}, {"CLI", cli, imp, 2}, {"EOR", eor, aby, 4}, {"???", nop, imp, 2}, {"???", xxx, imp, 7}, {"???", nop, imp, 4}, {"EOR", eor, abx, 4}, {"LSR", lsr, abx, 7}, {"???", xxx, imp, 7},
-	{"RTS", rts, imp, 6}, {"ADC", adc, izx, 6}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 3}, {"ADC", adc, zp0, 3}, {"ROR", ror, zp0, 5}, {"???", xxx, imp, 5}, {"PLA", pla, imp, 4}, {"ADC", adc, imm, 2}, {"ROR", ror, imp, 2}, {"???", xxx, imp, 2}, {"JMP", jmp, ind, 5}, {"ADC", adc, abs, 4}, {"ROR", ror, abs, 6}, {"???", xxx, imp, 6},
-	{"BVS", bvs, rel, 2}, {"ADC", adc, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 4}, {"ADC", adc, zpx, 4}, {"ROR", ror, zpx, 6}, {"???", xxx, imp, 6}, {"SEI", sei, imp, 2}, {"ADC", adc, aby, 4}, {"???", nop, imp, 2}, {"???", xxx, imp, 7}, {"???", nop, imp, 4}, {"ADC", adc, abx, 4}, {"ROR", ror, abx, 7}, {"???", xxx, imp, 7},
-	{"???", nop, imp, 2}, {"STA", sta, izx, 6}, {"???", nop, imp, 2}, {"???", xxx, imp, 6}, {"STY", sty, zp0, 3}, {"STA", sta, zp0, 3}, {"STX", stx, zp0, 3}, {"???", xxx, imp, 3}, {"DEY", dey, imp, 2}, {"???", nop, imp, 2}, {"TXA", txa, imp, 2}, {"???", xxx, imp, 2}, {"STY", sty, abs, 4}, {"STA", sta, abs, 4}, {"STX", stx, abs, 4}, {"???", xxx, imp, 4},
-	{"BCC", bcc, rel, 2}, {"STA", sta, izy, 6}, {"???", xxx, imp, 2}, {"???", xxx, imp, 6}, {"STY", sty, zpx, 4}, {"STA", sta, zpx, 4}, {"STX", stx, zpy, 4}, {"???", xxx, imp, 4}, {"TYA", tya, imp, 2}, {"STA", sta, aby, 5}, {"TXS", txs, imp, 2}, {"???", xxx, imp, 5}, {"???", nop, imp, 5}, {"STA", sta, abx, 5}, {"???", xxx, imp, 5}, {"???", xxx, imp, 5},
-	{"LDY", ldy, imm, 2}, {"LDA", lda, izx, 6}, {"LDX", ldx, imm, 2}, {"???", xxx, imp, 6}, {"LDY", ldy, zp0, 3}, {"LDA", lda, zp0, 3}, {"LDX", ldx, zp0, 3}, {"???", xxx, imp, 3}, {"TAY", tay, imp, 2}, {"LDA", lda, imm, 2}, {"TAX", tax, imp, 2}, {"???", xxx, imp, 2}, {"LDY", ldy, abs, 4}, {"LDA", lda, abs, 4}, {"LDX", ldx, abs, 4}, {"???", xxx, imp, 4},
-	{"BCS", bcs, rel, 2}, {"LDA", lda, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 5}, {"LDY", ldy, zpx, 4}, {"LDA", lda, zpx, 4}, {"LDX", ldx, zpy, 4}, {"???", xxx, imp, 4}, {"CLV", clv, imp, 2}, {"LDA", lda, aby, 4}, {"TSX", tsx, imp, 2}, {"???", xxx, imp, 4}, {"LDY", ldy, abx, 4}, {"LDA", lda, abx, 4}, {"LDX", ldx, aby, 4}, {"???", xxx, imp, 4},
-	{"CPY", cpy, imm, 2}, {"CMP", cmp, izx, 6}, {"???", nop, imp, 2}, {"???", xxx, imp, 8}, {"CPY", cpy, zp0, 3}, {"CMP", cmp, zp0, 3}, {"DEC", dec, zp0, 5}, {"???", xxx, imp, 5}, {"INY", iny, imp, 2}, {"CMP", cmp, imm, 2}, {"DEX", dex, imp, 2}, {"???", xxx, imp, 2}, {"CPY", cpy, abs, 4}, {"CMP", cmp, abs, 4}, {"DEC", dec, abs, 6}, {"???", xxx, imp, 6},
-	{"BNE", bne, rel, 2}, {"CMP", cmp, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 4}, {"CMP", cmp, zpx, 4}, {"DEC", dec, zpx, 6}, {"???", xxx, imp, 6}, {"CLD", cld, imp, 2}, {"CMP", cmp, aby, 4}, {"NOP", nop, imp, 2}, {"???", xxx, imp, 7}, {"???", nop, imp, 4}, {"CMP", cmp, abx, 4}, {"DEC", dec, abx, 7}, {"???", xxx, imp, 7},
-	{"CPX", cpx, imm, 2}, {"SBC", sbc, izx, 6}, {"???", nop, imp, 2}, {"???", xxx, imp, 8}, {"CPX", cpx, zp0, 3}, {"SBC", sbc, zp0, 3}, {"INC", inc, zp0, 5}, {"???", xxx, imp, 5}, {"INX", inx, imp, 2}, {"SBC", sbc, imm, 2}, {"NOP", nop, imp, 2}, {"???", sbc, imp, 2}, {"CPX", cpx, abs, 4}, {"SBC", sbc, abs, 4}, {"INC", inc, abs, 6}, {"???", xxx, imp, 6},
-	{"BEQ", beq, rel, 2}, {"SBC", sbc, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 4}, {"SBC", sbc, zpx, 4}, {"INC", inc, zpx, 6}, {"???", xxx, imp, 6}, {"SED", sed, imp, 2}, {"SBC", sbc, aby, 4}, {"NOP", nop, imp, 2}, {"???", xxx, imp, 7}, {"???", nop, imp, 4}, {"SBC", sbc, abx, 4}, {"INC", inc, abx, 7}, {"???", xxx, imp, 7},
+	return (addrAbs & 0xFF00) != uint16(hi)<<8
 }
 
 func Clock() {
@@ -801,4 +774,10 @@ func Clock() {
 		}
 	}
 	cycles--
+}
+
+func init() {
+	lookup = [256]instruction{
+		{"BRK", brk, imm, 7}, {"ORA", ora, izx, 6}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 3}, {"ORA", ora, zp0, 3}, {"ASL", asl, zp0, 5}, {"???", xxx, imp, 5}, {"PHP", php, imp, 3}, {"ORA", ora, imm, 2}, {"ASL", asl, imp, 2}, {"???", xxx, imp, 2}, {"???", nop, imp, 4}, {"ORA", ora, abs, 4}, {"ASL", asl, abs, 6}, {"???", xxx, imp, 6}, {"BPL", bpl, rel, 2}, {"ORA", ora, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 4}, {"ORA", ora, zpx, 4}, {"ASL", asl, zpx, 6}, {"???", xxx, imp, 6}, {"CLC", clc, imp, 2}, {"ORA", ora, aby, 4}, {"???", nop, imp, 2}, {"???", xxx, imp, 7}, {"???", nop, imp, 4}, {"ORA", ora, abx, 4}, {"ASL", asl, abx, 7}, {"???", xxx, imp, 7}, {"JSR", jsr, abs, 6}, {"AND", and, izx, 6}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"BIT", bit, zp0, 3}, {"AND", and, zp0, 3}, {"ROL", rol, zp0, 5}, {"???", xxx, imp, 5}, {"PLP", plp, imp, 4}, {"AND", and, imm, 2}, {"ROL", rol, imp, 2}, {"???", xxx, imp, 2}, {"BIT", bit, abs, 4}, {"AND", and, abs, 4}, {"ROL", rol, abs, 6}, {"???", xxx, imp, 6}, {"BMI", bmi, rel, 2}, {"AND", and, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 4}, {"AND", and, zpx, 4}, {"ROL", rol, zpx, 6}, {"???", xxx, imp, 6}, {"SEC", sec, imp, 2}, {"AND", and, aby, 4}, {"???", nop, imp, 2}, {"???", xxx, imp, 7}, {"???", nop, imp, 4}, {"AND", and, abx, 4}, {"ROL", rol, abx, 7}, {"???", xxx, imp, 7}, {"RTI", rti, imp, 6}, {"EOR", eor, izx, 6}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 3}, {"EOR", eor, zp0, 3}, {"LSR", lsr, zp0, 5}, {"???", xxx, imp, 5}, {"PHA", pha, imp, 3}, {"EOR", eor, imm, 2}, {"LSR", lsr, imp, 2}, {"???", xxx, imp, 2}, {"JMP", jmp, abs, 3}, {"EOR", eor, abs, 4}, {"LSR", lsr, abs, 6}, {"???", xxx, imp, 6}, {"BVC", bvc, rel, 2}, {"EOR", eor, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 4}, {"EOR", eor, zpx, 4}, {"LSR", lsr, zpx, 6}, {"???", xxx, imp, 6}, {"CLI", cli, imp, 2}, {"EOR", eor, aby, 4}, {"???", nop, imp, 2}, {"???", xxx, imp, 7}, {"???", nop, imp, 4}, {"EOR", eor, abx, 4}, {"LSR", lsr, abx, 7}, {"???", xxx, imp, 7}, {"RTS", rts, imp, 6}, {"ADC", adc, izx, 6}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 3}, {"ADC", adc, zp0, 3}, {"ROR", ror, zp0, 5}, {"???", xxx, imp, 5}, {"PLA", pla, imp, 4}, {"ADC", adc, imm, 2}, {"ROR", ror, imp, 2}, {"???", xxx, imp, 2}, {"JMP", jmp, ind, 5}, {"ADC", adc, abs, 4}, {"ROR", ror, abs, 6}, {"???", xxx, imp, 6}, {"BVS", bvs, rel, 2}, {"ADC", adc, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 4}, {"ADC", adc, zpx, 4}, {"ROR", ror, zpx, 6}, {"???", xxx, imp, 6}, {"SEI", sei, imp, 2}, {"ADC", adc, aby, 4}, {"???", nop, imp, 2}, {"???", xxx, imp, 7}, {"???", nop, imp, 4}, {"ADC", adc, abx, 4}, {"ROR", ror, abx, 7}, {"???", xxx, imp, 7}, {"???", nop, imp, 2}, {"STA", sta, izx, 6}, {"???", nop, imp, 2}, {"???", xxx, imp, 6}, {"STY", sty, zp0, 3}, {"STA", sta, zp0, 3}, {"STX", stx, zp0, 3}, {"???", xxx, imp, 3}, {"DEY", dey, imp, 2}, {"???", nop, imp, 2}, {"TXA", txa, imp, 2}, {"???", xxx, imp, 2}, {"STY", sty, abs, 4}, {"STA", sta, abs, 4}, {"STX", stx, abs, 4}, {"???", xxx, imp, 4}, {"BCC", bcc, rel, 2}, {"STA", sta, izy, 6}, {"???", xxx, imp, 2}, {"???", xxx, imp, 6}, {"STY", sty, zpx, 4}, {"STA", sta, zpx, 4}, {"STX", stx, zpy, 4}, {"???", xxx, imp, 4}, {"TYA", tya, imp, 2}, {"STA", sta, aby, 5}, {"TXS", txs, imp, 2}, {"???", xxx, imp, 5}, {"???", nop, imp, 5}, {"STA", sta, abx, 5}, {"???", xxx, imp, 5}, {"???", xxx, imp, 5}, {"LDY", ldy, imm, 2}, {"LDA", lda, izx, 6}, {"LDX", ldx, imm, 2}, {"???", xxx, imp, 6}, {"LDY", ldy, zp0, 3}, {"LDA", lda, zp0, 3}, {"LDX", ldx, zp0, 3}, {"???", xxx, imp, 3}, {"TAY", tay, imp, 2}, {"LDA", lda, imm, 2}, {"TAX", tax, imp, 2}, {"???", xxx, imp, 2}, {"LDY", ldy, abs, 4}, {"LDA", lda, abs, 4}, {"LDX", ldx, abs, 4}, {"???", xxx, imp, 4}, {"BCS", bcs, rel, 2}, {"LDA", lda, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 5}, {"LDY", ldy, zpx, 4}, {"LDA", lda, zpx, 4}, {"LDX", ldx, zpy, 4}, {"???", xxx, imp, 4}, {"CLV", clv, imp, 2}, {"LDA", lda, aby, 4}, {"TSX", tsx, imp, 2}, {"???", xxx, imp, 4}, {"LDY", ldy, abx, 4}, {"LDA", lda, abx, 4}, {"LDX", ldx, aby, 4}, {"???", xxx, imp, 4}, {"CPY", cpy, imm, 2}, {"CMP", cmp, izx, 6}, {"???", nop, imp, 2}, {"???", xxx, imp, 8}, {"CPY", cpy, zp0, 3}, {"CMP", cmp, zp0, 3}, {"DEC", dec, zp0, 5}, {"???", xxx, imp, 5}, {"INY", iny, imp, 2}, {"CMP", cmp, imm, 2}, {"DEX", dex, imp, 2}, {"???", xxx, imp, 2}, {"CPY", cpy, abs, 4}, {"CMP", cmp, abs, 4}, {"DEC", dec, abs, 6}, {"???", xxx, imp, 6}, {"BNE", bne, rel, 2}, {"CMP", cmp, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 4}, {"CMP", cmp, zpx, 4}, {"DEC", dec, zpx, 6}, {"???", xxx, imp, 6}, {"CLD", cld, imp, 2}, {"CMP", cmp, aby, 4}, {"NOP", nop, imp, 2}, {"???", xxx, imp, 7}, {"???", nop, imp, 4}, {"CMP", cmp, abx, 4}, {"DEC", dec, abx, 7}, {"???", xxx, imp, 7}, {"CPX", cpx, imm, 2}, {"SBC", sbc, izx, 6}, {"???", nop, imp, 2}, {"???", xxx, imp, 8}, {"CPX", cpx, zp0, 3}, {"SBC", sbc, zp0, 3}, {"INC", inc, zp0, 5}, {"???", xxx, imp, 5}, {"INX", inx, imp, 2}, {"SBC", sbc, imm, 2}, {"NOP", nop, imp, 2}, {"???", sbc, imp, 2}, {"CPX", cpx, abs, 4}, {"SBC", sbc, abs, 4}, {"INC", inc, abs, 6}, {"???", xxx, imp, 6}, {"BEQ", beq, rel, 2}, {"SBC", sbc, izy, 5}, {"???", xxx, imp, 2}, {"???", xxx, imp, 8}, {"???", nop, imp, 4}, {"SBC", sbc, zpx, 4}, {"INC", inc, zpx, 6}, {"???", xxx, imp, 6}, {"SED", sed, imp, 2}, {"SBC", sbc, aby, 4}, {"NOP", nop, imp, 2}, {"???", xxx, imp, 7}, {"???", nop, imp, 4}, {"SBC", sbc, abx, 4}, {"INC", inc, abx, 7}, {"???", xxx, imp, 7},
+	}
 }
