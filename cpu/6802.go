@@ -30,7 +30,7 @@ var addrRel uint16 = 0x00
 var opcode byte = 0x00
 var cycles byte = 0x00
 
-var FLAGS6502 = struct {
+var Flags = struct {
 	C uint8
 	Z uint8
 	I uint8
@@ -69,11 +69,11 @@ func getFlag(flag uint8) uint8 {
 }
 
 func read(addr uint16) byte {
-	return bus.Read(addr, false)
+	return bus.CPURead(addr, false)
 }
 
 func write(addr uint16, data byte) {
-	bus.Write(addr, data)
+	bus.CPUWrite(addr, data)
 }
 
 func imp() bool {
@@ -196,17 +196,17 @@ func fetch() byte {
 func and() bool {
 	fetch()
 	Accumulator = Accumulator & fetched
-	setFlag(FLAGS6502.Z, Accumulator == 0x00)
-	setFlag(FLAGS6502.N, (Accumulator&0x80) != 0)
+	setFlag(Flags.Z, Accumulator == 0x00)
+	setFlag(Flags.N, (Accumulator&0x80) != 0)
 	return true
 }
 
 func asl() bool {
 	fetch()
 	temp := fetched << 1
-	setFlag(FLAGS6502.C, (uint16(temp)&0xFF00) > 0)
-	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (temp&0x80) != 0)
+	setFlag(Flags.C, (uint16(temp)&0xFF00) > 0)
+	setFlag(Flags.Z, (temp&0x00FF) == 0)
+	setFlag(Flags.N, (temp&0x80) != 0)
 	if reflect.ValueOf(lookup[opcode].addrMode).Pointer() == reflect.ValueOf(imp).Pointer() {
 		Accumulator = temp & 0x00FF
 	} else {
@@ -216,7 +216,7 @@ func asl() bool {
 }
 
 func bcs() bool {
-	if getFlag(FLAGS6502.C) == 1 {
+	if getFlag(Flags.C) == 1 {
 		cycles++
 		addrAbs = ProgramCounter + addrRel
 		if (addrAbs & 0xFF00) != (ProgramCounter & 0xFF00) {
@@ -228,7 +228,7 @@ func bcs() bool {
 }
 
 func bcc() bool {
-	if getFlag(FLAGS6502.C) == 0 {
+	if getFlag(Flags.C) == 0 {
 		cycles++
 		addrAbs = ProgramCounter + addrRel
 		if (addrAbs & 0xFF00) != (ProgramCounter & 0xFF00) {
@@ -240,7 +240,7 @@ func bcc() bool {
 }
 
 func beq() bool {
-	if getFlag(FLAGS6502.Z) == 1 {
+	if getFlag(Flags.Z) == 1 {
 		cycles++
 		addrAbs = ProgramCounter + addrRel
 		if (addrAbs & 0xFF00) != (ProgramCounter & 0xFF00) {
@@ -254,14 +254,14 @@ func beq() bool {
 func bit() bool {
 	fetch()
 	temp := Accumulator & fetched
-	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
-	setFlag(FLAGS6502.N, fetched&(1<<7) > 0)
-	setFlag(FLAGS6502.V, fetched&(1<<6) > 0)
+	setFlag(Flags.Z, (temp&0x00FF) == 0)
+	setFlag(Flags.N, fetched&(1<<7) > 0)
+	setFlag(Flags.V, fetched&(1<<6) > 0)
 	return false
 }
 
 func bmi() bool {
-	if getFlag(FLAGS6502.N) == 1 {
+	if getFlag(Flags.N) == 1 {
 		cycles++
 		addrAbs = ProgramCounter + addrRel
 		if (addrAbs & 0xFF00) != (ProgramCounter & 0xFF00) {
@@ -273,7 +273,7 @@ func bmi() bool {
 }
 
 func bne() bool {
-	if getFlag(FLAGS6502.Z) == 0 {
+	if getFlag(Flags.Z) == 0 {
 		cycles++
 		addrAbs = ProgramCounter + addrRel
 		if (addrAbs & 0xFF00) != (ProgramCounter & 0xFF00) {
@@ -285,7 +285,7 @@ func bne() bool {
 }
 
 func bpl() bool {
-	if getFlag(FLAGS6502.N) == 0 {
+	if getFlag(Flags.N) == 0 {
 		cycles++
 		addrAbs = ProgramCounter + addrRel
 		if (addrAbs & 0xFF00) != (ProgramCounter & 0xFF00) {
@@ -297,7 +297,7 @@ func bpl() bool {
 }
 
 func bvc() bool {
-	if getFlag(FLAGS6502.Z) == 0 {
+	if getFlag(Flags.Z) == 0 {
 		cycles++
 		addrAbs = ProgramCounter + addrRel
 		if (addrAbs & 0xFF00) != (ProgramCounter & 0xFF00) {
@@ -309,7 +309,7 @@ func bvc() bool {
 }
 
 func bvs() bool {
-	if getFlag(FLAGS6502.V) == 1 {
+	if getFlag(Flags.V) == 1 {
 		cycles++
 		addrAbs = ProgramCounter + addrRel
 		if (addrAbs & 0xFF00) != (ProgramCounter & 0xFF00) {
@@ -321,49 +321,49 @@ func bvs() bool {
 }
 
 func clc() bool {
-	setFlag(FLAGS6502.C, false)
+	setFlag(Flags.C, false)
 	return false
 }
 
 func cld() bool {
-	setFlag(FLAGS6502.D, false)
+	setFlag(Flags.D, false)
 	return false
 }
 
 func cli() bool {
-	setFlag(FLAGS6502.I, false)
+	setFlag(Flags.I, false)
 	return false
 }
 
 func clv() bool {
-	setFlag(FLAGS6502.V, false)
+	setFlag(Flags.V, false)
 	return false
 }
 
 func cmp() bool {
 	fetch()
 	temp := uint16(Accumulator - fetched)
-	setFlag(FLAGS6502.C, temp < uint16(Accumulator))
-	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (temp&0x0080) != 0)
+	setFlag(Flags.C, temp < uint16(Accumulator))
+	setFlag(Flags.Z, (temp&0x00FF) == 0)
+	setFlag(Flags.N, (temp&0x0080) != 0)
 	return false
 }
 
 func cpx() bool {
 	fetch()
 	temp := uint16(XRegister - fetched)
-	setFlag(FLAGS6502.C, temp < uint16(XRegister))
-	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (temp&0x0080) != 0)
+	setFlag(Flags.C, temp < uint16(XRegister))
+	setFlag(Flags.Z, (temp&0x00FF) == 0)
+	setFlag(Flags.N, (temp&0x0080) != 0)
 	return false
 }
 
 func cpy() bool {
 	fetch()
 	temp := uint16(YRegister - fetched)
-	setFlag(FLAGS6502.C, temp < uint16(YRegister))
-	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (temp&0x0080) != 0)
+	setFlag(Flags.C, temp < uint16(YRegister))
+	setFlag(Flags.Z, (temp&0x00FF) == 0)
+	setFlag(Flags.N, (temp&0x0080) != 0)
 	return false
 }
 
@@ -371,30 +371,30 @@ func dec() bool {
 	fetch()
 	temp := fetched - 1
 	write(addrAbs, temp&0x00FF)
-	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (temp&0x80) != 0)
+	setFlag(Flags.Z, (temp&0x00FF) == 0)
+	setFlag(Flags.N, (temp&0x80) != 0)
 	return false
 }
 
 func dex() bool {
 	XRegister--
-	setFlag(FLAGS6502.Z, (XRegister&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (XRegister&0x80) != 0)
+	setFlag(Flags.Z, (XRegister&0x00FF) == 0)
+	setFlag(Flags.N, (XRegister&0x80) != 0)
 	return false
 }
 
 func dey() bool {
 	YRegister--
-	setFlag(FLAGS6502.Z, (YRegister&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (YRegister&0x80) != 0)
+	setFlag(Flags.Z, (YRegister&0x00FF) == 0)
+	setFlag(Flags.N, (YRegister&0x80) != 0)
 	return false
 }
 
 func eor() bool {
 	fetch()
 	Accumulator = Accumulator ^ fetched
-	setFlag(FLAGS6502.Z, Accumulator == 0x00)
-	setFlag(FLAGS6502.N, (Accumulator&0x80) != 0)
+	setFlag(Flags.Z, Accumulator == 0x00)
+	setFlag(Flags.N, (Accumulator&0x80) != 0)
 	return true
 }
 
@@ -402,22 +402,22 @@ func inc() bool {
 	fetch()
 	temp := fetched + 1
 	write(addrAbs, temp&0x00FF)
-	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (temp&0x80) != 0)
+	setFlag(Flags.Z, (temp&0x00FF) == 0)
+	setFlag(Flags.N, (temp&0x80) != 0)
 	return false
 }
 
 func inx() bool {
 	XRegister++
-	setFlag(FLAGS6502.Z, (XRegister&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (XRegister&0x80) != 0)
+	setFlag(Flags.Z, (XRegister&0x00FF) == 0)
+	setFlag(Flags.N, (XRegister&0x80) != 0)
 	return false
 }
 
 func iny() bool {
 	YRegister++
-	setFlag(FLAGS6502.Z, (YRegister&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (YRegister&0x80) != 0)
+	setFlag(Flags.Z, (YRegister&0x00FF) == 0)
+	setFlag(Flags.N, (YRegister&0x80) != 0)
 	return false
 }
 
@@ -440,33 +440,33 @@ func jsr() bool {
 func lda() bool {
 	fetch()
 	Accumulator = fetched
-	setFlag(FLAGS6502.Z, Accumulator == 0x00)
-	setFlag(FLAGS6502.N, (Accumulator&0x80) != 0)
+	setFlag(Flags.Z, Accumulator == 0x00)
+	setFlag(Flags.N, (Accumulator&0x80) != 0)
 	return false
 }
 
 func ldx() bool {
 	fetch()
 	XRegister = fetched
-	setFlag(FLAGS6502.Z, XRegister == 0x00)
-	setFlag(FLAGS6502.N, (XRegister&0x80) != 0)
+	setFlag(Flags.Z, XRegister == 0x00)
+	setFlag(Flags.N, (XRegister&0x80) != 0)
 	return false
 }
 
 func ldy() bool {
 	fetch()
 	YRegister = fetched
-	setFlag(FLAGS6502.Z, YRegister == 0x00)
-	setFlag(FLAGS6502.N, (YRegister&0x80) != 0)
+	setFlag(Flags.Z, YRegister == 0x00)
+	setFlag(Flags.N, (YRegister&0x80) != 0)
 	return false
 }
 
 func lsr() bool {
 	fetch()
-	setFlag(FLAGS6502.C, (fetched&0x01) > 0)
+	setFlag(Flags.C, (fetched&0x01) > 0)
 	temp := fetched >> 1
-	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (temp&0x80) != 0)
+	setFlag(Flags.Z, (temp&0x00FF) == 0)
+	setFlag(Flags.N, (temp&0x80) != 0)
 	if reflect.ValueOf(lookup[opcode].addrMode).Pointer() == reflect.ValueOf(imp).Pointer() {
 		Accumulator = temp & 0x00FF
 	} else {
@@ -490,11 +490,11 @@ func nop() bool {
 
 func adc() bool {
 	fetch()
-	temp := uint16(Accumulator) + uint16(fetched) + uint16(getFlag(FLAGS6502.C))
-	setFlag(FLAGS6502.C, temp > 255)
-	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (temp&0x80) != 0)
-	setFlag(FLAGS6502.V, ((Accumulator^fetched)&(Accumulator^byte(temp))&0x80) != 0)
+	temp := uint16(Accumulator) + uint16(fetched) + uint16(getFlag(Flags.C))
+	setFlag(Flags.C, temp > 255)
+	setFlag(Flags.Z, (temp&0x00FF) == 0)
+	setFlag(Flags.N, (temp&0x80) != 0)
+	setFlag(Flags.V, ((Accumulator^fetched)&(Accumulator^byte(temp))&0x80) != 0)
 	Accumulator = byte(temp & 0x00FF)
 	return true
 }
@@ -502,11 +502,11 @@ func adc() bool {
 func sbc() bool {
 	fetch()
 	value := uint16(fetched) ^ 0x00FF
-	temp := uint16(Accumulator) + value + uint16(getFlag(FLAGS6502.C))
-	setFlag(FLAGS6502.C, temp&0xFF00 != 0)
-	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (temp&0x80) != 0)
-	setFlag(FLAGS6502.V, (temp^(uint16(Accumulator)^value))&0x80 != 0)
+	temp := uint16(Accumulator) + value + uint16(getFlag(Flags.C))
+	setFlag(Flags.C, temp&0xFF00 != 0)
+	setFlag(Flags.Z, (temp&0x00FF) == 0)
+	setFlag(Flags.N, (temp&0x80) != 0)
+	setFlag(Flags.V, (temp^(uint16(Accumulator)^value))&0x80 != 0)
 	Accumulator = byte(temp & 0x00FF)
 	return true
 }
@@ -518,9 +518,9 @@ func pha() bool {
 }
 
 func php() bool {
-	write(0x0100+uint16(StackPointer), Status|FLAGS6502.B|FLAGS6502.U)
-	setFlag(FLAGS6502.B, false)
-	setFlag(FLAGS6502.U, false)
+	write(0x0100+uint16(StackPointer), Status|Flags.B|Flags.U)
+	setFlag(Flags.B, false)
+	setFlag(Flags.U, false)
 	StackPointer--
 	return false
 }
@@ -528,24 +528,24 @@ func php() bool {
 func pla() bool {
 	StackPointer++
 	Accumulator = read(0x0100 + uint16(StackPointer))
-	setFlag(FLAGS6502.Z, Accumulator == 0x00)
-	setFlag(FLAGS6502.N, (Accumulator&0x80) != 0)
+	setFlag(Flags.Z, Accumulator == 0x00)
+	setFlag(Flags.N, (Accumulator&0x80) != 0)
 	return false
 }
 
 func plp() bool {
 	StackPointer++
 	Status = read(0x0100 + uint16(StackPointer))
-	setFlag(FLAGS6502.U, true)
+	setFlag(Flags.U, true)
 	return false
 }
 
 func rol() bool {
 	fetch()
-	temp := (fetched << 1) | getFlag(FLAGS6502.C)
-	setFlag(FLAGS6502.C, (uint16(temp)&0xFF00) > 0)
-	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (temp&0x0080) != 0)
+	temp := (fetched << 1) | getFlag(Flags.C)
+	setFlag(Flags.C, (uint16(temp)&0xFF00) > 0)
+	setFlag(Flags.Z, (temp&0x00FF) == 0)
+	setFlag(Flags.N, (temp&0x0080) != 0)
 	if reflect.ValueOf(lookup[opcode].addrMode).Pointer() == reflect.ValueOf(imp).Pointer() {
 		Accumulator = temp & 0x00FF
 	} else {
@@ -556,10 +556,10 @@ func rol() bool {
 
 func ror() bool {
 	fetch()
-	temp := (getFlag(FLAGS6502.C) << 7) | (fetched >> 1)
-	setFlag(FLAGS6502.C, (uint16(temp)&0x01) != 0)
-	setFlag(FLAGS6502.Z, (temp&0x00FF) == 0)
-	setFlag(FLAGS6502.N, (temp&0x80) != 0)
+	temp := (getFlag(Flags.C) << 7) | (fetched >> 1)
+	setFlag(Flags.C, (uint16(temp)&0x01) != 0)
+	setFlag(Flags.Z, (temp&0x00FF) == 0)
+	setFlag(Flags.N, (temp&0x80) != 0)
 	if reflect.ValueOf(lookup[opcode].addrMode).Pointer() == reflect.ValueOf(imp).Pointer() {
 		Accumulator = temp & 0x00FF
 	} else {
@@ -568,29 +568,30 @@ func ror() bool {
 	return false
 }
 
-func reset() {
+func Reset() {
 	addrAbs = 0xFFFC
 	lo := read(addrAbs + 0)
 	hi := read(addrAbs + 1)
 	ProgramCounter = (uint16(hi) << 8) | uint16(lo)
-	Status = 0x00 | FLAGS6502.U
+	Status = 0x00 | Flags.U
 	StackPointer = 0xFD
 	addrAbs = 0x0000
 	addrRel = 0x0000
 	fetched = 0x00
 	cycles = 8
+	bus.Reset()
 }
 
 func irq() {
-	if getFlag(FLAGS6502.I) == 0 {
+	if getFlag(Flags.I) == 0 {
 		write(0x0100+uint16(StackPointer), byte((ProgramCounter>>8)&0x00FF))
 		StackPointer--
 		write(0x0100+uint16(StackPointer), byte(ProgramCounter&0x00FF))
 		StackPointer--
 
-		setFlag(FLAGS6502.B, false)
-		setFlag(FLAGS6502.U, true)
-		setFlag(FLAGS6502.I, true)
+		setFlag(Flags.B, false)
+		setFlag(Flags.U, true)
+		setFlag(Flags.I, true)
 		write(0x0100+uint16(StackPointer), Status)
 		StackPointer--
 		addrAbs = 0xFFFE
@@ -607,9 +608,9 @@ func nmi() {
 	write(0x0100+uint16(StackPointer), byte(ProgramCounter&0x00FF))
 	StackPointer--
 
-	setFlag(FLAGS6502.B, false)
-	setFlag(FLAGS6502.U, true)
-	setFlag(FLAGS6502.I, true)
+	setFlag(Flags.B, false)
+	setFlag(Flags.U, true)
+	setFlag(Flags.I, true)
 	write(0x0100+uint16(StackPointer), Status)
 	StackPointer--
 	addrAbs = 0xFFFA
@@ -622,8 +623,8 @@ func nmi() {
 func rti() bool {
 	StackPointer++
 	Status = read(0x0100 + uint16(StackPointer))
-	Status &= ^FLAGS6502.B
-	Status &= ^FLAGS6502.U
+	Status &= ^Flags.B
+	Status &= ^Flags.U
 	StackPointer++
 	ProgramCounter = uint16(read(0x0100 + uint16(StackPointer)))
 	StackPointer++
@@ -641,17 +642,17 @@ func rts() bool {
 }
 
 func sec() bool {
-	setFlag(FLAGS6502.C, true)
+	setFlag(Flags.C, true)
 	return false
 }
 
 func sed() bool {
-	setFlag(FLAGS6502.D, true)
+	setFlag(Flags.D, true)
 	return false
 }
 
 func sei() bool {
-	setFlag(FLAGS6502.I, true)
+	setFlag(Flags.I, true)
 	return false
 }
 
@@ -672,29 +673,29 @@ func sty() bool {
 
 func tax() bool {
 	XRegister = Accumulator
-	setFlag(FLAGS6502.Z, XRegister == 0x00)
-	setFlag(FLAGS6502.N, (XRegister&0x80) != 0)
+	setFlag(Flags.Z, XRegister == 0x00)
+	setFlag(Flags.N, (XRegister&0x80) != 0)
 	return false
 }
 
 func tay() bool {
 	YRegister = Accumulator
-	setFlag(FLAGS6502.Z, YRegister == 0x00)
-	setFlag(FLAGS6502.N, (YRegister&0x80) != 0)
+	setFlag(Flags.Z, YRegister == 0x00)
+	setFlag(Flags.N, (YRegister&0x80) != 0)
 	return false
 }
 
 func tsx() bool {
 	XRegister = StackPointer
-	setFlag(FLAGS6502.Z, XRegister == 0x00)
-	setFlag(FLAGS6502.N, (XRegister&0x80) != 0)
+	setFlag(Flags.Z, XRegister == 0x00)
+	setFlag(Flags.N, (XRegister&0x80) != 0)
 	return false
 }
 
 func txa() bool {
 	Accumulator = XRegister
-	setFlag(FLAGS6502.Z, Accumulator == 0x00)
-	setFlag(FLAGS6502.N, (Accumulator&0x80) != 0)
+	setFlag(Flags.Z, Accumulator == 0x00)
+	setFlag(Flags.N, (Accumulator&0x80) != 0)
 	return false
 }
 
@@ -705,8 +706,8 @@ func txs() bool {
 
 func tya() bool {
 	Accumulator = YRegister
-	setFlag(FLAGS6502.Z, Accumulator == 0x00)
-	setFlag(FLAGS6502.N, (Accumulator&0x80) != 0)
+	setFlag(Flags.Z, Accumulator == 0x00)
+	setFlag(Flags.N, (Accumulator&0x80) != 0)
 	return false
 }
 
@@ -716,16 +717,16 @@ func xxx() bool {
 
 func brk() bool {
 	ProgramCounter++
-	setFlag(FLAGS6502.I, true)
+	setFlag(Flags.I, true)
 	write(0x0100+uint16(StackPointer), byte((ProgramCounter>>8)&0x00FF))
 	StackPointer--
 	write(0x0100+uint16(StackPointer), byte(ProgramCounter&0x00FF))
 	StackPointer--
 
-	setFlag(FLAGS6502.B, true)
+	setFlag(Flags.B, true)
 	write(0x0100+uint16(StackPointer), Status)
 	StackPointer--
-	setFlag(FLAGS6502.B, false)
+	setFlag(Flags.B, false)
 
 	lo := read(0xFFFE)
 	hi := read(0xFFFF)
@@ -736,8 +737,8 @@ func brk() bool {
 func ora() bool {
 	fetch()
 	Accumulator = Accumulator | fetched
-	setFlag(FLAGS6502.Z, Accumulator == 0x00)
-	setFlag(FLAGS6502.N, (Accumulator&0x80) != 0)
+	setFlag(Flags.Z, Accumulator == 0x00)
+	setFlag(Flags.N, (Accumulator&0x80) != 0)
 	return true
 }
 
