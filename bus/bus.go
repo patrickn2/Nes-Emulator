@@ -24,7 +24,7 @@ func CPUWrite(addr uint16, data byte) {
 	}
 
 	if addr >= 0x2000 && addr <= 0x3FFF {
-		ppu.CPUWrite(addr&0x07FF, data)
+		ppu.CPUWrite(addr&0x0007, data)
 		return
 	}
 }

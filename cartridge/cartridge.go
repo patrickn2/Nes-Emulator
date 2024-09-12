@@ -56,9 +56,7 @@ func ReadCartridge() {
 			fmt.Println(err)
 			return
 		}
-
 	}
-
 }
 
 func CPUWrite(addr uint16, data byte) bool {

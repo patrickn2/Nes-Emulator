@@ -50,7 +50,7 @@ func CPURead(addr uint16, bReadOnly bool) byte {
 func PPURead(addr uint16, bReadOnly bool) byte {
 
 	addr &= 0x3FFF
-	return 0x00
+	return uint8(addr)
 }
 
 func PPUWrite(addr uint16, data byte) {
