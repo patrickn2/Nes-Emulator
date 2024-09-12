@@ -11,7 +11,7 @@ type BUS struct {
 func New() *BUS {
 	return &BUS{
 		nSystemClockCounter: 0x00,
-		data:                make([]byte, 65535),
+		data:                make([]byte, 0xFFFF),
 	}
 }
 
