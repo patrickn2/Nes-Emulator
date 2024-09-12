@@ -25,6 +25,7 @@ type flags struct {
 }
 
 type cpu struct {
+	bus            *bus.BUS
 	status         byte
 	accumulator    byte
 	xRegister      byte
@@ -40,8 +41,9 @@ type cpu struct {
 	flags          flags
 }
 
-func New() *cpu {
+func New(bus *bus.BUS) *cpu {
 	c := &cpu{
+		bus:            bus,
 		status:         0x00,
 		accumulator:    0x00,
 		xRegister:      0x00,
@@ -327,20 +329,6 @@ func New() *cpu {
 
 // Public Methods
 
-func (c *cpu) Reset() {
-	c.addrAbs = 0xFFFC
-	lo := c.read(c.addrAbs + 0)
-	hi := c.read(c.addrAbs + 1)
-	c.programCounter = (uint16(hi) << 8) | uint16(lo)
-	c.status = 0x00 | c.flags.u
-	c.stackPointer = 0xFD
-	c.addrAbs = 0x0000
-	c.addrRel = 0x0000
-	c.fetched = 0x00
-	c.cycles = 8
-	bus.Reset()
-}
-
 func (c *cpu) Clock() {
 	if c.cycles == 0 {
 		c.opcode = c.read(c.programCounter)
@@ -373,11 +361,11 @@ func (c *cpu) getFlag(flag uint8) uint8 {
 }
 
 func (c *cpu) read(addr uint16) byte {
-	return bus.CPURead(addr, false)
+	return c.bus.Read(addr)
 }
 
 func (c *cpu) write(addr uint16, data byte) {
-	bus.CPUWrite(addr, data)
+	c.bus.Write(addr, data)
 }
 
 func (c *cpu) imp() bool {

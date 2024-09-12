@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/patrickn2/gonesemulator/bus"
 	"github.com/patrickn2/gonesemulator/cpu"
 )
 
@@ -75,8 +76,8 @@ func main() {
 	}
 
 	fmt.Printf("nMapperID: %d", nMapperID)
-
-	cpu := cpu.New()
+	bus := bus.New()
+	cpu := cpu.New(bus)
 
 	cpu.Clock()
 
